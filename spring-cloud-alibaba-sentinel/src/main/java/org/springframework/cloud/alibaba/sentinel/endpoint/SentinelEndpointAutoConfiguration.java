@@ -28,14 +28,14 @@ import org.springframework.context.annotation.Bean;
  * @author hengyunabc
  */
 @ConditionalOnClass(Endpoint.class)
-@EnableConfigurationProperties({ SentinelProperties.class })
+@EnableConfigurationProperties({SentinelProperties.class})
 public class SentinelEndpointAutoConfiguration {
 
-	@Bean
-	@ConditionalOnMissingBean
-	@ConditionalOnEnabledEndpoint
-	public SentinelEndpoint sentinelEndPoint() {
-		return new SentinelEndpoint();
-	}
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnEnabledEndpoint
+    public SentinelEndpoint sentinelEndPoint() {
+        return new SentinelEndpoint();
+    }
 
 }

@@ -43,7 +43,8 @@ public class ConsumersManager {
 
 	private final Map<String, DefaultMQPushConsumer> consumerGroups = new HashMap<>();
 	private final Map<String, Boolean> started = new HashMap<>();
-	private final Map<Map.Entry<String, String>, ExtendedConsumerProperties<RocketMQConsumerProperties>> propertiesMap = new HashMap<>();
+	private final Map<Map.Entry<String, String>, ExtendedConsumerProperties<RocketMQConsumerProperties>>
+			propertiesMap = new HashMap<>();
 	private final RocketMQBinderConfigurationProperties rocketBinderConfigurationProperties;
 
 	private InstrumentationManager instrumentationManager;

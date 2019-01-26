@@ -37,47 +37,47 @@ import com.alibaba.csp.sentinel.slots.system.SystemRuleManager;
 
 /**
  * Endpoint for Sentinel, contains ans properties and rules
+ *
  * @author xiaojing
  */
 @Endpoint(id = "sentinel")
 public class SentinelEndpoint {
 
-	@Autowired
-	private SentinelProperties sentinelProperties;
+    @Autowired
+    private SentinelProperties sentinelProperties;
 
-	@Autowired
-	private SentinelDataSourceHandler dataSourceHandler;
+    @Autowired
+    private SentinelDataSourceHandler dataSourceHandler;
 
-	@Autowired
-	private ApplicationContext applicationContext;
+    @Autowired
+    private ApplicationContext applicationContext;
 
-	@ReadOperation
-	public Map<String, Object> invoke() {
-		final Map<String, Object> result = new HashMap<>();
+    @ReadOperation
+    public Map<String, Object> invoke() {
+        final Map<String, Object> result = new HashMap<>();
 
-		List<FlowRule> flowRules = FlowRuleManager.getRules();
-		List<DegradeRule> degradeRules = DegradeRuleManager.getRules();
-		List<SystemRule> systemRules = SystemRuleManager.getRules();
-		result.put("properties", sentinelProperties);
-		result.put("FlowRules", flowRules);
-		result.put("DegradeRules", degradeRules);
-		result.put("SystemRules", systemRules);
-		result.put("datasources", new HashMap<String, Object>());
-		dataSourceHandler.getDataSourceBeanNameList().forEach(dataSourceBeanName -> {
-			ReadableDataSource dataSource = applicationContext.getBean(dataSourceBeanName,
-					ReadableDataSource.class);
-			try {
-				((HashMap) result.get("datasources")).put(dataSourceBeanName,
-						dataSource.loadConfig());
-			}
-			catch (Exception e) {
-				((HashMap) result.get("datasources")).put(dataSourceBeanName,
-						"load error: " + e.getMessage());
-			}
+        List<FlowRule> flowRules = FlowRuleManager.getRules();
+        List<DegradeRule> degradeRules = DegradeRuleManager.getRules();
+        List<SystemRule> systemRules = SystemRuleManager.getRules();
+        result.put("properties", sentinelProperties);
+        result.put("FlowRules", flowRules);
+        result.put("DegradeRules", degradeRules);
+        result.put("SystemRules", systemRules);
+        result.put("datasources", new HashMap<String, Object>());
+        dataSourceHandler.getDataSourceBeanNameList().forEach(dataSourceBeanName -> {
+            ReadableDataSource dataSource = applicationContext.getBean(dataSourceBeanName,
+                    ReadableDataSource.class);
+            try {
+                ((HashMap) result.get("datasources")).put(dataSourceBeanName,
+                        dataSource.loadConfig());
+            } catch (Exception e) {
+                ((HashMap) result.get("datasources")).put(dataSourceBeanName,
+                        "load error: " + e.getMessage());
+            }
 
-		});
+        });
 
-		return result;
-	}
+        return result;
+    }
 
 }

@@ -14,8 +14,7 @@ import org.springframework.beans.factory.FactoryBean;
  * @author <a href="mailto:fangjian0423@gmail.com">Jim</a>
  * @see FileRefreshableDataSource
  */
-public class FileRefreshableDataSourceFactoryBean
-    implements FactoryBean<FileRefreshableDataSource> {
+public class FileRefreshableDataSourceFactoryBean implements FactoryBean<FileRefreshableDataSource> {
 
     private String file;
     private String charset;
@@ -26,7 +25,7 @@ public class FileRefreshableDataSourceFactoryBean
     @Override
     public FileRefreshableDataSource getObject() throws Exception {
         return new FileRefreshableDataSource(new File(file), converter,
-            recommendRefreshMs, bufSize, Charset.forName(charset));
+                recommendRefreshMs, bufSize, Charset.forName(charset));
     }
 
     @Override

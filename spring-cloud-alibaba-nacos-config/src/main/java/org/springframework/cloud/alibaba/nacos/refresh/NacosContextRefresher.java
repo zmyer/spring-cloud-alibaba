@@ -47,80 +47,80 @@ import com.alibaba.nacos.api.exception.NacosException;
  */
 public class NacosContextRefresher implements ApplicationListener<ApplicationReadyEvent> {
 
-	private Logger logger = LoggerFactory.getLogger(NacosContextRefresher.class);
+    private Logger logger = LoggerFactory.getLogger(NacosContextRefresher.class);
 
-	private final ContextRefresher contextRefresher;
+    private final ContextRefresher contextRefresher;
 
-	private final NacosConfigProperties properties;
+    private final NacosConfigProperties properties;
 
-	private final NacosRefreshProperties refreshProperties;
+    private final NacosRefreshProperties refreshProperties;
 
-	private final NacosRefreshHistory refreshHistory;
+    private final NacosRefreshHistory refreshHistory;
 
-	private final NacosPropertySourceRepository nacosPropertySourceRepository;
+    private final NacosPropertySourceRepository nacosPropertySourceRepository;
 
-	private final ConfigService configService;
+    private final ConfigService configService;
 
-	private Map<String,Listener> listenerMap = new ConcurrentHashMap<>(16);
+    private Map<String, Listener> listenerMap = new ConcurrentHashMap<>(16);
 
-	public NacosContextRefresher(ContextRefresher contextRefresher,
-			NacosConfigProperties properties, NacosRefreshProperties refreshProperties,
-			NacosRefreshHistory refreshHistory,
-			NacosPropertySourceRepository nacosPropertySourceRepository,
-			ConfigService configService) {
-		this.contextRefresher = contextRefresher;
-		this.properties = properties;
-		this.refreshProperties = refreshProperties;
-		this.refreshHistory = refreshHistory;
-		this.nacosPropertySourceRepository = nacosPropertySourceRepository;
-		this.configService = configService;
-	}
+    public NacosContextRefresher(ContextRefresher contextRefresher,
+                                 NacosConfigProperties properties, NacosRefreshProperties refreshProperties,
+                                 NacosRefreshHistory refreshHistory,
+                                 NacosPropertySourceRepository nacosPropertySourceRepository,
+                                 ConfigService configService) {
+        this.contextRefresher = contextRefresher;
+        this.properties = properties;
+        this.refreshProperties = refreshProperties;
+        this.refreshHistory = refreshHistory;
+        this.nacosPropertySourceRepository = nacosPropertySourceRepository;
+        this.configService = configService;
+    }
 
-	@Override
-	public void onApplicationEvent(ApplicationReadyEvent event) {
-		this.registerNacosListenersForApplications();
-	}
+    @Override
+    public void onApplicationEvent(ApplicationReadyEvent event) {
+        this.registerNacosListenersForApplications();
+    }
 
-	private void registerNacosListenersForApplications() {
-		if (refreshProperties.isEnabled()) {
-			for (NacosPropertySource nacosPropertySource : nacosPropertySourceRepository
-					.getAll()) {
-				String dataId = nacosPropertySource.getDataId();
-				registerNacosListener(dataId);
-			}
-		}
-	}
+    private void registerNacosListenersForApplications() {
+        if (refreshProperties.isEnabled()) {
+            for (NacosPropertySource nacosPropertySource : nacosPropertySourceRepository
+                    .getAll()) {
+                String dataId = nacosPropertySource.getDataId();
+                registerNacosListener(dataId);
+            }
+        }
+    }
 
-	private void registerNacosListener(final String dataId) {
+    private void registerNacosListener(final String dataId) {
 
-		Listener listener = listenerMap.computeIfAbsent(dataId, i -> new Listener() {
-			@Override
-			public void receiveConfigInfo(String configInfo) {
-				String md5 = "";
-				if (!StringUtils.isEmpty(configInfo)) {
-					try {
-						MessageDigest md = MessageDigest.getInstance("MD5");
-						md5 = new BigInteger(1, md.digest(configInfo.getBytes("UTF-8")))
-							.toString(16);
-					} catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
-						logger.warn("unable to get md5 for dataId: " + dataId, e);
-					}
-				}
-				refreshHistory.add(dataId, md5);
-				contextRefresher.refresh();
-			}
+        Listener listener = listenerMap.computeIfAbsent(dataId, i -> new Listener() {
+            @Override
+            public void receiveConfigInfo(String configInfo) {
+                String md5 = "";
+                if (!StringUtils.isEmpty(configInfo)) {
+                    try {
+                        MessageDigest md = MessageDigest.getInstance("MD5");
+                        md5 = new BigInteger(1, md.digest(configInfo.getBytes("UTF-8")))
+                                .toString(16);
+                    } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
+                        logger.warn("unable to get md5 for dataId: " + dataId, e);
+                    }
+                }
+                refreshHistory.add(dataId, md5);
+                contextRefresher.refresh();
+            }
 
-			@Override
-			public Executor getExecutor() {
-				return null;
-			}
-		});
+            @Override
+            public Executor getExecutor() {
+                return null;
+            }
+        });
 
-		try {
-			configService.addListener(dataId, properties.getGroup(), listener);
-		} catch (NacosException e) {
-			e.printStackTrace();
-		}
-	}
+        try {
+            configService.addListener(dataId, properties.getGroup(), listener);
+        } catch (NacosException e) {
+            e.printStackTrace();
+        }
+    }
 
 }

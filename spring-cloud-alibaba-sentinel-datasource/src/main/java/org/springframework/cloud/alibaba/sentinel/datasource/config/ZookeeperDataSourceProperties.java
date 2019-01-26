@@ -10,47 +10,47 @@ import org.springframework.cloud.alibaba.sentinel.datasource.factorybean.Zookeep
  */
 public class ZookeeperDataSourceProperties extends AbstractDataSourceProperties {
 
-	public ZookeeperDataSourceProperties() {
-		super(ZookeeperDataSourceFactoryBean.class.getName());
-	}
+    public ZookeeperDataSourceProperties() {
+        super(ZookeeperDataSourceFactoryBean.class.getName());
+    }
 
-	private String serverAddr;
+    private String serverAddr;
 
-	private String path;
+    private String path;
 
-	private String groupId;
+    private String groupId;
 
-	private String dataId;
+    private String dataId;
 
-	public String getServerAddr() {
-		return serverAddr;
-	}
+    public String getServerAddr() {
+        return serverAddr;
+    }
 
-	public void setServerAddr(String serverAddr) {
-		this.serverAddr = serverAddr;
-	}
+    public void setServerAddr(String serverAddr) {
+        this.serverAddr = serverAddr;
+    }
 
-	public String getPath() {
-		return path;
-	}
+    public String getPath() {
+        return path;
+    }
 
-	public void setPath(String path) {
-		this.path = path;
-	}
+    public void setPath(String path) {
+        this.path = path;
+    }
 
-	public String getGroupId() {
-		return groupId;
-	}
+    public String getGroupId() {
+        return groupId;
+    }
 
-	public void setGroupId(String groupId) {
-		this.groupId = groupId;
-	}
+    public void setGroupId(String groupId) {
+        this.groupId = groupId;
+    }
 
-	public String getDataId() {
-		return dataId;
-	}
+    public String getDataId() {
+        return dataId;
+    }
 
-	public void setDataId(String dataId) {
-		this.dataId = dataId;
-	}
+    public void setDataId(String dataId) {
+        this.dataId = dataId;
+    }
 }

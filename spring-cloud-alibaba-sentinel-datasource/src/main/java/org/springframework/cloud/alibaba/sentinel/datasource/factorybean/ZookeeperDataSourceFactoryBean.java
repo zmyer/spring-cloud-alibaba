@@ -32,7 +32,7 @@ public class ZookeeperDataSourceFactoryBean implements FactoryBean<ZookeeperData
             // using path directly
             return new ZookeeperDataSource(serverAddr, path, converter);
         }
-    }
+    }o
 
     @Override
     public Class<?> getObjectType() {

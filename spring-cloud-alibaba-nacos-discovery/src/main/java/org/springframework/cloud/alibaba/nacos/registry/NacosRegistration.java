@@ -38,98 +38,98 @@ import com.alibaba.nacos.api.naming.NamingService;
  */
 public class NacosRegistration implements Registration, ServiceInstance {
 
-	private static final String MANAGEMENT_PORT = "management.port";
-	private static final String MANAGEMENT_CONTEXT_PATH = "management.context-path";
-	private static final String MANAGEMENT_ADDRESS = "management.address";
+    private static final String MANAGEMENT_PORT = "management.port";
+    private static final String MANAGEMENT_CONTEXT_PATH = "management.context-path";
+    private static final String MANAGEMENT_ADDRESS = "management.address";
 
-	@Autowired
-	private NacosDiscoveryProperties nacosDiscoveryProperties;
+    @Autowired
+    private NacosDiscoveryProperties nacosDiscoveryProperties;
 
-	@Autowired
-	private ApplicationContext context;
+    @Autowired
+    private ApplicationContext context;
 
-	@PostConstruct
-	public void init() {
+    @PostConstruct
+    public void init() {
 
-		Environment env = context.getEnvironment();
-		Integer managementPort = ManagementServerPortUtils.getPort(context);
-		if (null != managementPort) {
-			Map<String, String> metadata = nacosDiscoveryProperties.getMetadata();
-			metadata.put(MANAGEMENT_PORT, managementPort.toString());
-			String contextPath = env
-					.getProperty("management.server.servlet.context-path");
-			String address = env.getProperty("management.server.address");
-			if (!StringUtils.isEmpty(contextPath)) {
-				metadata.put(MANAGEMENT_CONTEXT_PATH, contextPath);
-			}
-			if (!StringUtils.isEmpty(address)) {
-				metadata.put(MANAGEMENT_ADDRESS, address);
-			}
-		}
-	}
+        Environment env = context.getEnvironment();
+        Integer managementPort = ManagementServerPortUtils.getPort(context);
+        if (null != managementPort) {
+            Map<String, String> metadata = nacosDiscoveryProperties.getMetadata();
+            metadata.put(MANAGEMENT_PORT, managementPort.toString());
+            String contextPath = env
+                    .getProperty("management.server.servlet.context-path");
+            String address = env.getProperty("management.server.address");
+            if (!StringUtils.isEmpty(contextPath)) {
+                metadata.put(MANAGEMENT_CONTEXT_PATH, contextPath);
+            }
+            if (!StringUtils.isEmpty(address)) {
+                metadata.put(MANAGEMENT_ADDRESS, address);
+            }
+        }
+    }
 
-	@Override
-	public String getServiceId() {
-		return nacosDiscoveryProperties.getService();
-	}
+    @Override
+    public String getServiceId() {
+        return nacosDiscoveryProperties.getService();
+    }
 
-	@Override
-	public String getHost() {
-		return nacosDiscoveryProperties.getIp();
-	}
+    @Override
+    public String getHost() {
+        return nacosDiscoveryProperties.getIp();
+    }
 
-	@Override
-	public int getPort() {
-		return nacosDiscoveryProperties.getPort();
-	}
+    @Override
+    public int getPort() {
+        return nacosDiscoveryProperties.getPort();
+    }
 
-	public void setPort(int port) {
-		this.nacosDiscoveryProperties.setPort(port);
-	}
+    public void setPort(int port) {
+        this.nacosDiscoveryProperties.setPort(port);
+    }
 
-	@Override
-	public boolean isSecure() {
-		return nacosDiscoveryProperties.isSecure();
-	}
+    @Override
+    public boolean isSecure() {
+        return nacosDiscoveryProperties.isSecure();
+    }
 
-	@Override
-	public URI getUri() {
-		return DefaultServiceInstance.getUri(this);
-	}
+    @Override
+    public URI getUri() {
+        return DefaultServiceInstance.getUri(this);
+    }
 
-	@Override
-	public Map<String, String> getMetadata() {
-		return nacosDiscoveryProperties.getMetadata();
-	}
+    @Override
+    public Map<String, String> getMetadata() {
+        return nacosDiscoveryProperties.getMetadata();
+    }
 
-	public boolean isRegisterEnabled() {
-		return nacosDiscoveryProperties.isRegisterEnabled();
-	}
+    public boolean isRegisterEnabled() {
+        return nacosDiscoveryProperties.isRegisterEnabled();
+    }
 
-	public String getCluster() {
-		return nacosDiscoveryProperties.getClusterName();
-	}
+    public String getCluster() {
+        return nacosDiscoveryProperties.getClusterName();
+    }
 
-	public float getRegisterWeight() {
-		return nacosDiscoveryProperties.getWeight();
-	}
+    public float getRegisterWeight() {
+        return nacosDiscoveryProperties.getWeight();
+    }
 
-	public NacosDiscoveryProperties getNacosDiscoveryProperties() {
-		return nacosDiscoveryProperties;
-	}
+    public NacosDiscoveryProperties getNacosDiscoveryProperties() {
+        return nacosDiscoveryProperties;
+    }
 
-	public NamingService getNacosNamingService() {
-		return nacosDiscoveryProperties.namingServiceInstance();
-	}
+    public NamingService getNacosNamingService() {
+        return nacosDiscoveryProperties.namingServiceInstance();
+    }
 
-	public void setNacosDiscoveryProperties(
-			NacosDiscoveryProperties nacosDiscoveryProperties) {
-		this.nacosDiscoveryProperties = nacosDiscoveryProperties;
-	}
+    public void setNacosDiscoveryProperties(
+            NacosDiscoveryProperties nacosDiscoveryProperties) {
+        this.nacosDiscoveryProperties = nacosDiscoveryProperties;
+    }
 
-	@Override
-	public String toString() {
-		return "NacosRegistration{" + "nacosDiscoveryProperties="
-				+ nacosDiscoveryProperties + '}';
-	}
+    @Override
+    public String toString() {
+        return "NacosRegistration{" + "nacosDiscoveryProperties="
+                + nacosDiscoveryProperties + '}';
+    }
 }

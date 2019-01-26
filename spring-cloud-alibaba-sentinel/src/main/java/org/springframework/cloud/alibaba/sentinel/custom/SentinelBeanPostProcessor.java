@@ -40,67 +40,67 @@ import org.springframework.web.client.RestTemplate;
  */
 public class SentinelBeanPostProcessor implements MergedBeanDefinitionPostProcessor {
 
-	@Autowired
-	private ApplicationContext applicationContext;
+    @Autowired
+    private ApplicationContext applicationContext;
 
-	private ConcurrentHashMap<String, SentinelProtect> cache = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, SentinelProtect> cache = new ConcurrentHashMap<>();
 
-	@Override
-	public void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition,
-			Class<?> beanType, String beanName) {
-		if (checkSentinelProtect(beanDefinition, beanType)) {
-			SentinelProtect sentinelProtect = ((StandardMethodMetadata) beanDefinition
-					.getSource()).getIntrospectedMethod()
-							.getAnnotation(SentinelProtect.class);
-			cache.put(beanName, sentinelProtect);
-		}
-	}
+    @Override
+    public void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition,
+                                                Class<?> beanType, String beanName) {
+        if (checkSentinelProtect(beanDefinition, beanType)) {
+            SentinelProtect sentinelProtect = ((StandardMethodMetadata) beanDefinition
+                    .getSource()).getIntrospectedMethod()
+                    .getAnnotation(SentinelProtect.class);
+            cache.put(beanName, sentinelProtect);
+        }
+    }
 
-	private boolean checkSentinelProtect(RootBeanDefinition beanDefinition,
-			Class<?> beanType) {
-		return beanType == RestTemplate.class
-				&& beanDefinition.getSource() instanceof StandardMethodMetadata
-				&& ((StandardMethodMetadata) beanDefinition.getSource())
-						.isAnnotated(SentinelProtect.class.getName());
-	}
+    private boolean checkSentinelProtect(RootBeanDefinition beanDefinition,
+                                         Class<?> beanType) {
+        return beanType == RestTemplate.class
+                && beanDefinition.getSource() instanceof StandardMethodMetadata
+                && ((StandardMethodMetadata) beanDefinition.getSource())
+                .isAnnotated(SentinelProtect.class.getName());
+    }
 
-	@Override
-	public Object postProcessAfterInitialization(Object bean, String beanName)
-			throws BeansException {
-		if (cache.containsKey(beanName)) {
-			// add interceptor for each RestTemplate with @SentinelProtect annotation
-			StringBuilder interceptorBeanName = new StringBuilder();
-			SentinelProtect sentinelProtect = cache.get(beanName);
-			interceptorBeanName
-					.append(StringUtils.uncapitalize(
-							SentinelProtectInterceptor.class.getSimpleName()))
-					.append("_")
-					.append(sentinelProtect.blockHandlerClass().getSimpleName())
-					.append(sentinelProtect.blockHandler()).append("_")
-					.append(sentinelProtect.fallbackClass().getSimpleName())
-					.append(sentinelProtect.fallback());
-			RestTemplate restTemplate = (RestTemplate) bean;
-			registerBean(interceptorBeanName.toString(), sentinelProtect);
-			SentinelProtectInterceptor sentinelProtectInterceptor = applicationContext
-					.getBean(interceptorBeanName.toString(),
-							SentinelProtectInterceptor.class);
-			restTemplate.getInterceptors().add(sentinelProtectInterceptor);
-		}
-		return bean;
-	}
+    @Override
+    public Object postProcessAfterInitialization(Object bean, String beanName)
+            throws BeansException {
+        if (cache.containsKey(beanName)) {
+            // add interceptor for each RestTemplate with @SentinelProtect annotation
+            StringBuilder interceptorBeanName = new StringBuilder();
+            SentinelProtect sentinelProtect = cache.get(beanName);
+            interceptorBeanName
+                    .append(StringUtils.uncapitalize(
+                            SentinelProtectInterceptor.class.getSimpleName()))
+                    .append("_")
+                    .append(sentinelProtect.blockHandlerClass().getSimpleName())
+                    .append(sentinelProtect.blockHandler()).append("_")
+                    .append(sentinelProtect.fallbackClass().getSimpleName())
+                    .append(sentinelProtect.fallback());
+            RestTemplate restTemplate = (RestTemplate) bean;
+            registerBean(interceptorBeanName.toString(), sentinelProtect);
+            SentinelProtectInterceptor sentinelProtectInterceptor = applicationContext
+                    .getBean(interceptorBeanName.toString(),
+                            SentinelProtectInterceptor.class);
+            restTemplate.getInterceptors().add(sentinelProtectInterceptor);
+        }
+        return bean;
+    }
 
-	private void registerBean(String interceptorBeanName,
-			SentinelProtect sentinelProtect) {
-		// register SentinelProtectInterceptor bean
-		DefaultListableBeanFactory beanFactory = (DefaultListableBeanFactory) applicationContext
-				.getAutowireCapableBeanFactory();
-		BeanDefinitionBuilder beanDefinitionBuilder = BeanDefinitionBuilder
-				.genericBeanDefinition(SentinelProtectInterceptor.class);
-		beanDefinitionBuilder.addConstructorArgValue(sentinelProtect);
-		BeanDefinition interceptorBeanDefinition = beanDefinitionBuilder
-				.getRawBeanDefinition();
-		beanFactory.registerBeanDefinition(interceptorBeanName,
-				interceptorBeanDefinition);
-	}
+    private void registerBean(String interceptorBeanName,
+                              SentinelProtect sentinelProtect) {
+        // register SentinelProtectInterceptor bean
+        DefaultListableBeanFactory beanFactory = (DefaultListableBeanFactory) applicationContext
+                .getAutowireCapableBeanFactory();
+        BeanDefinitionBuilder beanDefinitionBuilder = BeanDefinitionBuilder
+                .genericBeanDefinition(SentinelProtectInterceptor.class);
+        beanDefinitionBuilder.addConstructorArgValue(sentinelProtect);
+        BeanDefinition interceptorBeanDefinition = beanDefinitionBuilder
+                .getRawBeanDefinition();
+        beanFactory.registerBeanDefinition(interceptorBeanName,
+                interceptorBeanDefinition);
+    }
 
 }

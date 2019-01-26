@@ -42,38 +42,38 @@ import com.alibaba.csp.sentinel.adapter.servlet.CommonFilter;
 @EnableConfigurationProperties(SentinelProperties.class)
 public class SentinelWebAutoConfiguration {
 
-	private static final Logger logger = LoggerFactory
-			.getLogger(SentinelWebAutoConfiguration.class);
+    private static final Logger logger = LoggerFactory
+            .getLogger(SentinelWebAutoConfiguration.class);
 
-	@Autowired
-	private SentinelProperties properties;
+    @Autowired
+    private SentinelProperties properties;
 
-	@Bean
-	public FilterRegistrationBean servletRequestListener() {
-		FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
+    @Bean
+    public FilterRegistrationBean servletRequestListener() {
+        FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
 
-		SentinelProperties.Filter filterConfig = properties.getFilter();
+        SentinelProperties.Filter filterConfig = properties.getFilter();
 
-		if (null == filterConfig) {
-			filterConfig = new SentinelProperties.Filter();
-			properties.setFilter(filterConfig);
-		}
+        if (null == filterConfig) {
+            filterConfig = new SentinelProperties.Filter();
+            properties.setFilter(filterConfig);
+        }
 
-		if (filterConfig.getUrlPatterns() == null
-				|| filterConfig.getUrlPatterns().isEmpty()) {
-			List<String> defaultPatterns = new ArrayList<>();
-			defaultPatterns.add("/*");
-			filterConfig.setUrlPatterns(defaultPatterns);
-		}
+        if (filterConfig.getUrlPatterns() == null
+                || filterConfig.getUrlPatterns().isEmpty()) {
+            List<String> defaultPatterns = new ArrayList<>();
+            defaultPatterns.add("/*");
+            filterConfig.setUrlPatterns(defaultPatterns);
+        }
 
-		registration.addUrlPatterns(filterConfig.getUrlPatterns().toArray(new String[0]));
-		Filter filter = new CommonFilter();
-		registration.setFilter(filter);
-		registration.setOrder(filterConfig.getOrder());
-		logger.info("[Sentinel Starter] register Sentinel with urlPatterns: {}.",
-				filterConfig.getUrlPatterns());
-		return registration;
+        registration.addUrlPatterns(filterConfig.getUrlPatterns().toArray(new String[0]));
+        Filter filter = new CommonFilter();
+        registration.setFilter(filter);
+        registration.setOrder(filterConfig.getOrder());
+        logger.info("[Sentinel Starter] register Sentinel with urlPatterns: {}.",
+                filterConfig.getUrlPatterns());
+        return registration;
 
-	}
+    }
 
 }
