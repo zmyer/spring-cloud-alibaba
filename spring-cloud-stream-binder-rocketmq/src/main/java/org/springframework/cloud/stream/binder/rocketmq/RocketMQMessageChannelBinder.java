@@ -16,6 +16,9 @@
 
 package org.springframework.cloud.stream.binder.rocketmq;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.rocketmq.client.producer.LocalTransactionExecuter;
+import org.apache.rocketmq.client.producer.TransactionCheckListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.stream.binder.AbstractMessageChannelBinder;
@@ -36,6 +39,7 @@ import org.springframework.cloud.stream.provisioning.ProducerDestination;
 import org.springframework.integration.core.MessageProducer;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
+import org.springframework.util.ClassUtils;
 
 /**
  * @author Timur Valiev
@@ -67,29 +71,48 @@ public class RocketMQMessageChannelBinder extends
         this.instrumentationManager = instrumentationManager;
     }
 
-    @Override
-    protected MessageHandler createProducerMessageHandler(ProducerDestination destination,
-                                                          ExtendedProducerProperties<RocketMQProducerProperties> producerProperties,
-                                                          MessageChannel errorChannel) throws Exception {
-        if (producerProperties.getExtension().getEnabled()) {
-            return new RocketMQMessageHandler(destination.getName(),
-                    producerProperties.getExtension(),
-                    rocketBinderConfigurationProperties, instrumentationManager);
-        } else {
-            throw new RuntimeException("Binding for channel " + destination.getName()
-                    + " has been disabled, message can't be delivered");
-        }
-    }
+	@Override
+	protected MessageHandler createProducerMessageHandler(ProducerDestination destination,
+			ExtendedProducerProperties<RocketMQProducerProperties> producerProperties,
+			MessageChannel errorChannel) throws Exception {
+		if (producerProperties.getExtension().getEnabled()) {
+			RocketMQMessageHandler messageHandler = new RocketMQMessageHandler(
+					destination.getName(), producerProperties,
+					rocketBinderConfigurationProperties, instrumentationManager);
+			if (producerProperties.getExtension().getTransactional()) {
+				// transaction message check LocalTransactionExecuter
+				messageHandler.setLocalTransactionExecuter(
+						getClassConfiguration(destination.getName(),
+								producerProperties.getExtension().getExecuter(),
+								LocalTransactionExecuter.class));
+				// transaction message check TransactionCheckListener
+				messageHandler.setTransactionCheckListener(
+						getClassConfiguration(destination.getName(),
+								producerProperties.getExtension()
+										.getTransactionCheckListener(),
+								TransactionCheckListener.class));
+			}
 
-    @Override
-    protected MessageProducer createConsumerEndpoint(ConsumerDestination destination,
-                                                     String group,
-                                                     ExtendedConsumerProperties<RocketMQConsumerProperties> consumerProperties)
-            throws Exception {
-        if (group == null || "".equals(group)) {
-            throw new RuntimeException(
-                    "'group must be configured for channel + " + destination.getName());
-        }
+			if (errorChannel != null) {
+				messageHandler.setSendFailureChannel(errorChannel);
+			}
+			return messageHandler;
+		}
+		else {
+			throw new RuntimeException("Binding for channel " + destination.getName()
+					+ " has been disabled, message can't be delivered");
+		}
+	}
+
+	@Override
+	protected MessageProducer createConsumerEndpoint(ConsumerDestination destination,
+			String group,
+			ExtendedConsumerProperties<RocketMQConsumerProperties> consumerProperties)
+			throws Exception {
+		if (group == null || "".equals(group)) {
+			throw new RuntimeException(
+					"'group must be configured for channel " + destination.getName());
+		}
 
         RocketMQInboundChannelAdapter rocketInboundChannelAdapter = new RocketMQInboundChannelAdapter(
                 consumersManager, consumerProperties, destination.getName(), group,
@@ -115,8 +138,50 @@ public class RocketMQMessageChannelBinder extends
         return extendedBindingProperties.getExtendedConsumerProperties(channelName);
     }
 
-    @Override
-    public RocketMQProducerProperties getExtendedProducerProperties(String channelName) {
-        return extendedBindingProperties.getExtendedProducerProperties(channelName);
-    }
+	@Override
+	public RocketMQProducerProperties getExtendedProducerProperties(String channelName) {
+		return extendedBindingProperties.getExtendedProducerProperties(channelName);
+	}
+
+	private <T> T getClassConfiguration(String destName, String className,
+			Class<T> interfaceClass) {
+		if (StringUtils.isEmpty(className)) {
+			throw new RuntimeException("Binding for channel " + destName
+					+ " using transactional message, should set "
+					+ interfaceClass.getSimpleName() + " configuration"
+					+ interfaceClass.getSimpleName() + " should be set, like "
+					+ "'spring.cloud.stream.rocketmq.bindings.output.producer.xxx=TheFullClassNameOfYour"
+					+ interfaceClass.getSimpleName() + "'");
+		}
+		else if (StringUtils.isNotEmpty(className)) {
+			Class fieldClass;
+			// check class exists
+			try {
+				fieldClass = ClassUtils.forName(className,
+						RocketMQMessageChannelBinder.class.getClassLoader());
+			}
+			catch (ClassNotFoundException e) {
+				throw new RuntimeException("Binding for channel " + destName
+						+ " using transactional message, but " + className
+						+ " class is not found");
+			}
+			// check interface incompatible
+			if (!interfaceClass.isAssignableFrom(fieldClass)) {
+				throw new RuntimeException("Binding for channel " + destName
+						+ " using transactional message, but " + className
+						+ " is incompatible with " + interfaceClass.getSimpleName()
+						+ " interface");
+			}
+			try {
+				return (T) fieldClass.newInstance();
+			}
+			catch (Exception e) {
+				throw new RuntimeException("Binding for channel " + destName
+						+ " using transactional message, but " + className
+						+ " instance error", e);
+			}
+		}
+		return null;
+	}
+
 }

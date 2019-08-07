@@ -31,10 +31,11 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties
 public class NacosDiscoveryClientAutoConfiguration {
 
-    @Bean
-    public DiscoveryClient nacosDiscoveryClient() {
-        return new NacosDiscoveryClient();
-    }
+	@Bean
+	public DiscoveryClient nacosDiscoveryClient(
+			NacosDiscoveryProperties discoveryProperties) {
+		return new NacosDiscoveryClient(discoveryProperties);
+	}
 
     @Bean
     @ConditionalOnMissingBean

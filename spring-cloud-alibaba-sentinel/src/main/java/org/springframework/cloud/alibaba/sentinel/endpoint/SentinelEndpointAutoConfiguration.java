@@ -31,11 +31,11 @@ import org.springframework.context.annotation.Bean;
 @EnableConfigurationProperties({SentinelProperties.class})
 public class SentinelEndpointAutoConfiguration {
 
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnEnabledEndpoint
-    public SentinelEndpoint sentinelEndPoint() {
-        return new SentinelEndpoint();
-    }
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnEnabledEndpoint
+	public SentinelEndpoint sentinelEndPoint(SentinelProperties sentinelProperties) {
+		return new SentinelEndpoint(sentinelProperties);
+	}
 
 }

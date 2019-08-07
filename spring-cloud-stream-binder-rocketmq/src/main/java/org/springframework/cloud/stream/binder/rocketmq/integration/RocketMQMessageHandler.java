@@ -23,25 +23,37 @@ import java.util.Optional;
 import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
+import org.apache.rocketmq.client.producer.LocalTransactionExecuter;
 import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.client.producer.SendStatus;
+import org.apache.rocketmq.client.producer.TransactionCheckListener;
+import org.apache.rocketmq.client.producer.TransactionMQProducer;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.remoting.exception.RemotingException;
+import org.springframework.cloud.stream.binder.ExtendedProducerProperties;
 import org.springframework.cloud.stream.binder.rocketmq.RocketMQBinderConstants;
 import org.springframework.cloud.stream.binder.rocketmq.RocketMQMessageHeaderAccessor;
+import org.springframework.cloud.stream.binder.rocketmq.exception.RocketMQSendFailureException;
 import org.springframework.cloud.stream.binder.rocketmq.metrics.InstrumentationManager;
 import org.springframework.cloud.stream.binder.rocketmq.metrics.ProducerInstrumentation;
 import org.springframework.cloud.stream.binder.rocketmq.properties.RocketMQBinderConfigurationProperties;
 import org.springframework.cloud.stream.binder.rocketmq.properties.RocketMQProducerProperties;
 import org.springframework.context.Lifecycle;
 import org.springframework.integration.handler.AbstractMessageHandler;
+import org.springframework.integration.support.DefaultErrorMessageStrategy;
+import org.springframework.integration.support.ErrorMessageStrategy;
 import org.springframework.integration.support.MutableMessage;
+import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessagingException;
+import org.springframework.messaging.support.ErrorMessage;
+import org.springframework.util.Assert;
 
 /**
  * @author <a href="mailto:fangjian0423@gmail.com">Jim</a>
  */
 public class RocketMQMessageHandler extends AbstractMessageHandler implements Lifecycle {
+
+	private ErrorMessageStrategy errorMessageStrategy = new DefaultErrorMessageStrategy();
 
 	private DefaultMQProducer producer;
 
@@ -49,16 +61,22 @@ public class RocketMQMessageHandler extends AbstractMessageHandler implements Li
 
 	private InstrumentationManager instrumentationManager;
 
-	private final RocketMQProducerProperties producerProperties;
+	private LocalTransactionExecuter localTransactionExecuter;
+
+	private TransactionCheckListener transactionCheckListener;
+
+	private MessageChannel sendFailureChannel;
+
+	private final ExtendedProducerProperties<RocketMQProducerProperties> producerProperties;
 
 	private final String destination;
 
 	private final RocketMQBinderConfigurationProperties rocketBinderConfigurationProperties;
 
-	protected volatile boolean running = false;
+	private volatile boolean running = false;
 
 	public RocketMQMessageHandler(String destination,
-			RocketMQProducerProperties producerProperties,
+			ExtendedProducerProperties<RocketMQProducerProperties> producerProperties,
 			RocketMQBinderConfigurationProperties rocketBinderConfigurationProperties,
 			InstrumentationManager instrumentationManager) {
 		this.destination = destination;
@@ -69,7 +87,19 @@ public class RocketMQMessageHandler extends AbstractMessageHandler implements Li
 
 	@Override
 	public void start() {
-		producer = new DefaultMQProducer(destination);
+		if (producerProperties.getExtension().getTransactional()) {
+			producer = new TransactionMQProducer(destination);
+			if (transactionCheckListener != null) {
+				((TransactionMQProducer) producer)
+						.setTransactionCheckListener(transactionCheckListener);
+			}
+		}
+		else {
+			producer = new DefaultMQProducer(destination);
+		}
+
+		producer.setVipChannelEnabled(
+				producerProperties.getExtension().getVipChannelEnabled());
 
 		Optional.ofNullable(instrumentationManager).ifPresent(manager -> {
 			producerInstrumentation = manager.getProducerInstrumentation(destination);
@@ -78,8 +108,9 @@ public class RocketMQMessageHandler extends AbstractMessageHandler implements Li
 
 		producer.setNamesrvAddr(rocketBinderConfigurationProperties.getNamesrvAddr());
 
-		if (producerProperties.getMaxMessageSize() > 0) {
-			producer.setMaxMessageSize(producerProperties.getMaxMessageSize());
+		if (producerProperties.getExtension().getMaxMessageSize() > 0) {
+			producer.setMaxMessageSize(
+					producerProperties.getExtension().getMaxMessageSize());
 		}
 
 		try {
@@ -113,8 +144,8 @@ public class RocketMQMessageHandler extends AbstractMessageHandler implements Li
 	@Override
 	protected void handleMessageInternal(org.springframework.messaging.Message<?> message)
 			throws Exception {
+		Message toSend = null;
 		try {
-			Message toSend;
 			if (message.getPayload() instanceof byte[]) {
 				toSend = new Message(destination, (byte[]) message.getPayload());
 			}
@@ -138,10 +169,23 @@ public class RocketMQMessageHandler extends AbstractMessageHandler implements Li
 				toSend.putUserProperty(entry.getKey(), entry.getValue());
 			}
 
-			SendResult sendRes = producer.send(toSend);
+			SendResult sendRes;
+			if (producerProperties.getExtension().getTransactional()) {
+				sendRes = producer.sendMessageInTransaction(toSend,
+						localTransactionExecuter, headerAccessor.getTransactionalArg());
+			}
+			else {
+				sendRes = producer.send(toSend);
+			}
 
 			if (!sendRes.getSendStatus().equals(SendStatus.SEND_OK)) {
-				throw new MQClientException("message hasn't been sent", null);
+				if (getSendFailureChannel() != null) {
+					this.getSendFailureChannel().send(message);
+				}
+				else {
+					throw new RocketMQSendFailureException(message, toSend,
+							new MQClientException("message hasn't been sent", null));
+				}
 			}
 			if (message instanceof MutableMessage) {
 				RocketMQMessageHeaderAccessor.putSendResult((MutableMessage) message,
@@ -159,9 +203,60 @@ public class RocketMQMessageHandler extends AbstractMessageHandler implements Li
 					.ifPresent(p -> p.markSentFailure());
 			logger.error(
 					"RocketMQ Message hasn't been sent. Caused by " + e.getMessage());
-			throw new MessagingException(e.getMessage(), e);
+			if (getSendFailureChannel() != null) {
+				getSendFailureChannel().send(this.errorMessageStrategy.buildErrorMessage(
+						new RocketMQSendFailureException(message, toSend, e), null));
+			}
+			else {
+				throw new RocketMQSendFailureException(message, toSend, e);
+			}
 		}
 
 	}
 
+	/**
+	 * Using in RocketMQ Transactional Mode. Set RocketMQ localTransactionExecuter in
+	 * {@link DefaultMQProducer#sendMessageInTransaction}.
+	 * @param localTransactionExecuter the executer running when produce msg.
+	 */
+	public void setLocalTransactionExecuter(
+			LocalTransactionExecuter localTransactionExecuter) {
+		this.localTransactionExecuter = localTransactionExecuter;
+	}
+
+	/**
+	 * Using in RocketMQ Transactional Mode. Set RocketMQ transactionCheckListener in
+	 * {@link TransactionMQProducer#setTransactionCheckListener}.
+	 * @param transactionCheckListener the listener set in {@link TransactionMQProducer}.
+	 */
+	public void setTransactionCheckListener(
+			TransactionCheckListener transactionCheckListener) {
+		this.transactionCheckListener = transactionCheckListener;
+	}
+
+	/**
+	 * Set the failure channel. After a send failure, an {@link ErrorMessage} will be sent
+	 * to this channel with a payload of a {@link RocketMQSendFailureException} with the
+	 * failed message and cause.
+	 * @param sendFailureChannel the failure channel.
+	 * @since 0.2.2
+	 */
+	public void setSendFailureChannel(MessageChannel sendFailureChannel) {
+		this.sendFailureChannel = sendFailureChannel;
+	}
+
+	/**
+	 * Set the error message strategy implementation to use when sending error messages
+	 * after send failures. Cannot be null.
+	 * @param errorMessageStrategy the implementation.
+	 * @since 0.2.2
+	 */
+	public void setErrorMessageStrategy(ErrorMessageStrategy errorMessageStrategy) {
+		Assert.notNull(errorMessageStrategy, "'errorMessageStrategy' cannot be null");
+		this.errorMessageStrategy = errorMessageStrategy;
+	}
+
+	public MessageChannel getSendFailureChannel() {
+		return sendFailureChannel;
+	}
 }

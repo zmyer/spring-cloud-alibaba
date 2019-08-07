@@ -1,5 +1,7 @@
 package org.springframework.cloud.alibaba.sentinel.datasource.config;
 
+import javax.validation.constraints.NotEmpty;
+
 import org.springframework.cloud.alibaba.sentinel.datasource.factorybean.ZookeeperDataSourceFactoryBean;
 
 /**
@@ -14,7 +16,8 @@ public class ZookeeperDataSourceProperties extends AbstractDataSourceProperties 
         super(ZookeeperDataSourceFactoryBean.class.getName());
     }
 
-    private String serverAddr;
+	@NotEmpty
+	private String serverAddr;
 
     private String path;
 

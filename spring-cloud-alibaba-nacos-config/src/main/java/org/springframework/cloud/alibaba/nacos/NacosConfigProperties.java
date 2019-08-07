@@ -16,42 +16,35 @@
 
 package org.springframework.cloud.alibaba.nacos;
 
-import java.util.Arrays;
-import java.util.Objects;
-import java.util.Properties;
-
-import javax.annotation.PostConstruct;
-
 import com.alibaba.nacos.api.NacosFactory;
 import com.alibaba.nacos.api.config.ConfigService;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.core.env.Environment;
 
-import static com.alibaba.nacos.api.PropertyKeyConst.ACCESS_KEY;
-import static com.alibaba.nacos.api.PropertyKeyConst.CLUSTER_NAME;
-import static com.alibaba.nacos.api.PropertyKeyConst.CONTEXT_PATH;
-import static com.alibaba.nacos.api.PropertyKeyConst.ENCODE;
-import static com.alibaba.nacos.api.PropertyKeyConst.ENDPOINT;
-import static com.alibaba.nacos.api.PropertyKeyConst.NAMESPACE;
-import static com.alibaba.nacos.api.PropertyKeyConst.SECRET_KEY;
-import static com.alibaba.nacos.api.PropertyKeyConst.SERVER_ADDR;
+import javax.annotation.PostConstruct;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.Properties;
+
+import static com.alibaba.nacos.api.PropertyKeyConst.*;
 
 /**
  * nacos properties
  *
  * @author leijuan
  * @author xiaojing
+ * @author pbting
  */
-@ConfigurationProperties("spring.cloud.nacos.config")
+@ConfigurationProperties(NacosConfigProperties.PREFIX)
 public class NacosConfigProperties {
 
-	private static final Logger LOGGER = LoggerFactory
-			.getLogger(NacosConfigProperties.class);
+	static final String PREFIX = "spring.cloud.nacos.config";
+
+	private static final Log log = LogFactory.getLog(NacosConfigProperties.class);
 
 	/**
 	 * nacos config server address
@@ -113,10 +106,25 @@ public class NacosConfigProperties {
 	 */
 	private String clusterName;
 
-	@Value("${spring.application.name}")
 	private String name;
 
 	private String[] activeProfiles;
+
+	/**
+	 * the dataids for configurable multiple shared configurations , multiple separated by
+	 * commas .
+	 */
+	private String sharedDataids;
+
+	/**
+	 * refreshable dataids , multiple separated by commas .
+	 */
+	private String refreshableDataids;
+
+	/**
+	 * a set of extended configurations .
+	 */
+	private List<Config> extConfig;
 
 	private ConfigService configService;
 
@@ -234,10 +242,83 @@ public class NacosConfigProperties {
 		return activeProfiles;
 	}
 
+	public String getSharedDataids() {
+		return sharedDataids;
+	}
+
+	public void setSharedDataids(String sharedDataids) {
+		this.sharedDataids = sharedDataids;
+	}
+
+	public String getRefreshableDataids() {
+		return refreshableDataids;
+	}
+
+	public void setRefreshableDataids(String refreshableDataids) {
+		this.refreshableDataids = refreshableDataids;
+	}
+
+	public List<Config> getExtConfig() {
+		return extConfig;
+	}
+
+	public void setExtConfig(List<Config> extConfig) {
+		this.extConfig = extConfig;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public void setActiveProfiles(String[] activeProfiles) {
+		this.activeProfiles = activeProfiles;
+	}
+
+	public static class Config {
+		/**
+		 * the data id of extended configuration
+		 */
+		private String dataId;
+		/**
+		 * the group of extended configuration, the default value is DEFAULT_GROUP
+		 */
+		private String group = "DEFAULT_GROUP";
+		/**
+		 * whether to support dynamic refresh, the default does not support .
+		 */
+		private boolean refresh = false;
+
+		public String getDataId() {
+			return dataId;
+		}
+
+		public void setDataId(String dataId) {
+			this.dataId = dataId;
+		}
+
+		public String getGroup() {
+			return group;
+		}
+
+		public void setGroup(String group) {
+			this.group = group;
+		}
+
+		public boolean isRefresh() {
+			return refresh;
+		}
+
+		public void setRefresh(boolean refresh) {
+			this.refresh = refresh;
+		}
+	}
+
 	@Override
 	public String toString() {
 		return "NacosConfigProperties{" + "serverAddr='" + serverAddr + '\''
-				+ ", encode='" + encode + '\'' + ", group='" + group + '\'' + ", prefix='"
+				+ ", encode='" + encode + '\'' + ", group='" + group + '\''
+				+ ", sharedDataids='" + this.sharedDataids + '\''
+				+ ", refreshableDataids='" + this.refreshableDataids + '\'' + ", prefix='"
 				+ prefix + '\'' + ", fileExtension='" + fileExtension + '\''
 				+ ", timeout=" + timeout + ", endpoint='" + endpoint + '\''
 				+ ", namespace='" + namespace + '\'' + ", accessKey='" + accessKey + '\''
@@ -266,8 +347,11 @@ public class NacosConfigProperties {
 			return configService;
 		}
 		catch (Exception e) {
-			LOGGER.error("create config service error!properties={},e=,", this, e);
+			log.error(
+					"create config service error!properties=" + this.toString() + ",e=,",
+					e);
 			return null;
 		}
 	}
+
 }

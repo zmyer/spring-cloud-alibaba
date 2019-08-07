@@ -16,16 +16,14 @@
 
 package org.springframework.cloud.alibaba.nacos;
 
+import com.alibaba.nacos.api.naming.pojo.Instance;
+import com.alibaba.nacos.api.naming.pojo.ListView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 
 import java.util.*;
-
-import com.alibaba.nacos.api.naming.pojo.Instance;
-import com.alibaba.nacos.api.naming.pojo.ListView;
 
 /**
  * @author xiaojing
@@ -37,8 +35,11 @@ public class NacosDiscoveryClient implements DiscoveryClient {
 			.getLogger(NacosDiscoveryClient.class);
 	public static final String DESCRIPTION = "Spring Cloud Nacos Discovery Client";
 
-	@Autowired
 	private NacosDiscoveryProperties discoveryProperties;
+
+	public NacosDiscoveryClient(NacosDiscoveryProperties discoveryProperties) {
+		this.discoveryProperties = discoveryProperties;
+	}
 
 	@Override
 	public String description() {
@@ -49,7 +50,7 @@ public class NacosDiscoveryClient implements DiscoveryClient {
 	public List<ServiceInstance> getInstances(String serviceId) {
 		try {
 			List<Instance> instances = discoveryProperties.namingServiceInstance()
-					.getAllInstances(serviceId);
+					.selectInstances(serviceId, true);
 			return hostToServiceInstanceList(instances, serviceId);
 		}
 		catch (Exception e) {
@@ -64,23 +65,26 @@ public class NacosDiscoveryClient implements DiscoveryClient {
 		nacosServiceInstance.setHost(instance.getIp());
 		nacosServiceInstance.setPort(instance.getPort());
 		nacosServiceInstance.setServiceId(serviceId);
-		Map<String, String> metadata = new HashMap<String, String>();
+		Map<String, String> metadata = new HashMap<>();
 		metadata.put("instanceId", instance.getInstanceId());
 		metadata.put("weight", instance.getWeight() + "");
 		metadata.put("healthy", instance.isHealthy() + "");
 		metadata.put("cluster", instance.getClusterName() + "");
 		metadata.putAll(instance.getMetadata());
 		nacosServiceInstance.setMetadata(metadata);
+
+		if (metadata.containsKey("secure")) {
+			boolean secure = Boolean.parseBoolean(metadata.get("secure"));
+			nacosServiceInstance.setSecure(secure);
+		}
 		return nacosServiceInstance;
 	}
 
 	private static List<ServiceInstance> hostToServiceInstanceList(
 			List<Instance> instances, String serviceId) {
-		List<ServiceInstance> result = new ArrayList<ServiceInstance>(instances.size());
+		List<ServiceInstance> result = new ArrayList<>(instances.size());
 		for (Instance instance : instances) {
-			if (instance.isHealthy()) {
-				result.add(hostToServiceInstance(instance, serviceId));
-			}
+			result.add(hostToServiceInstance(instance, serviceId));
 		}
 		return result;
 	}
